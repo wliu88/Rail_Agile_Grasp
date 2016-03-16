@@ -2,8 +2,9 @@
 #include <actionlib/client/simple_action_client.h>
 #include <actionlib/client/terminal_state.h>
 #include <rail_manipulation_msgs/PickupAction.h>
+#include <rail_manipulation_msgs/SegmentedObjectList.h>
 
-
+void objects_callback(const rail_manipulation_msgs::SegmentedObjectList &objects);
 
 int main (int argc, char **argv)
 {
@@ -11,7 +12,7 @@ int main (int argc, char **argv)
   
   ros::NodeHandle nh;
 
-  ros::Subscriber sub = n.subscribe("/object_recognition_listener/recognized_objects", 100, objects_callback);
+  ros::Subscriber sub = nh.subscribe("/object_recognition_listener/recognized_objects", 100, objects_callback);
 
 
   // create the action client
@@ -42,14 +43,17 @@ int main (int argc, char **argv)
   if (pickupClient.getState() != actionlib::SimpleClientGoalState::SUCCEEDED || !pickupClient.getResult()->success)
   {
    ROS_INFO("Pickup failed.");
-   return rail_action_queue_msgs::GeneralAction::MANIPULATION_PLANNING_FAILURE;
  }
  else
  {
    ROS_INFO("Pickup succeeded!");
-   return rail_action_queue_msgs::GeneralAction::SUCCESS;
  }
 
   //exit
  return 0;
+}
+
+void objects_callback(const rail_manipulation_msgs::SegmentedObjectList &objects)
+{
+  
 }
