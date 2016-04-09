@@ -9,6 +9,7 @@ find_package(catkin REQUIRED COMPONENTS
   actionlib
   actionlib_msgs
   rail_manipulation_msgs
+  tf
 )
 
 ## System dependencies are found with CMake's conventions
