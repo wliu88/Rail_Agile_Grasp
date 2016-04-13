@@ -21,8 +21,9 @@ int main (int argc, char **argv)
 	// initialize a service client for segmentation
 	ros::ServiceClient segmentClient = nh.serviceClient<std_srvs::Empty>("/rail_segmentation/segment");
 	// initialize a action client for finding grasps
-	actionlib::SimpleActionClient<rail_agile_grasp_msgs::FindGraspsAction> findGraspsClient("/agile_grasp/find_grasps", true);
-	//findGraspsClient.waitForServer();
+	actionlib::SimpleActionClient<rail_agile_grasp_msgs::FindGraspsAction> findGraspsClient("/rail_agile_grasp/find_grasps", true);
+	findGraspsClient.waitForServer();
+	ROS_INFO("Find find_grasps server");
 
 
 	/***
@@ -64,6 +65,8 @@ int main (int argc, char **argv)
 	ros::Rate rate(10.0);
 
 	bool calledSegmentation = false;
+	bool calledOnce = false;
+
 	while(nh.ok())
 	{
 		ros::spinOnce();
@@ -80,15 +83,16 @@ int main (int argc, char **argv)
 			}
 		}
 
-		if (!workspaceList.empty())
+		if (!workspaceList.empty() && !calledOnce)
 		{
 			rail_agile_grasp_msgs::FindGraspsGoal findGraspsGoal;
 			findGraspsGoal.workspace = workspaceList.front();
 			workspaceList.pop_front();
 			findGraspsClient.sendGoal(findGraspsGoal);
-			//findGraspsClient.waitForResult(ros::Duration(10));
 			ROS_INFO("send one goal");
 			// wait for the action to complete
+			findGraspsClient.waitForResult(ros::Duration(10));
+			calledOnce = true;
 		}
 		rate.sleep();
 	}
@@ -143,7 +147,7 @@ void objects_callback(const rail_manipulation_msgs::SegmentedObjectList &objectL
 		wp.y_min = pt_transformed.point.y - 0.1;
 		wp.y_max = pt_transformed.point.y + 0.1;
 		wp.z_min = -10;
-		wp.x_max = 10;
+		wp.z_max = 10;
 		workspaceList.push_back(wp);
 
 		//ROS_INFO("The dimension of the object is\n\twidth: %f\n\tdepth: %f\n\theight: %f\n\n", object.width, object.depth, object.height);
