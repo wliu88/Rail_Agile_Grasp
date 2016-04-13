@@ -10,9 +10,6 @@
 
 // message callback after segmentation service is called
 void objects_callback(const rail_manipulation_msgs::SegmentedObjectList &objectList);
-
-//sensor_msgs::PointCloud2 cloud_stored;
-
 // a list of workspaces of cluttered objects
 std::list<rail_agile_grasp_msgs::Workspace> workspaceList;
 
@@ -27,7 +24,6 @@ int main (int argc, char **argv)
 	actionlib::SimpleActionClient<rail_agile_grasp_msgs::FindGraspsAction> findGraspsClient("/agile_grasp/find_grasps", true);
 	//findGraspsClient.waitForServer();
 
-	//ros::Publisher pub = nh.advertise<sensor_msgs::PointCloud2>("segmented_cloud", 1000);
 
 	/***
   	// create the action client
@@ -65,30 +61,6 @@ int main (int argc, char **argv)
   	}
   	***/
 
-  	/***
-	tf::TransformListener listener;
-	const ros::Time time = ros::Time(0);
-	const std::string target_frame = "kinect2_rgb_optical_frame";
-	const std::string reference_frame = "table_base_link";
-
-
-	while(nh.ok())
-	{
-		try
-		{
-			listener.waitForTransform(target_frame, reference_frame, time, ros::Duration(10.0));
-			listener.lookupTransform(target_frame, reference_frame, time, transform);
-			break;
-		}
-		catch(tf::TransformException ex)
-		{
-			ROS_ERROR("%s", ex.what());
-		}
-		rate.sleep();
-	}
-	ROS_INFO("Find transform");
-	***/
-
 	ros::Rate rate(10.0);
 
 	bool calledSegmentation = false;
@@ -110,8 +82,6 @@ int main (int argc, char **argv)
 
 		if (!workspaceList.empty())
 		{
-			//nh.deleteParam("/find_grasps/workspace");
-			//nh.setParam("/find_grasps/workspace", workspaceList.front());
 			rail_agile_grasp_msgs::FindGraspsGoal findGraspsGoal;
 			findGraspsGoal.workspace = workspaceList.front();
 			workspaceList.pop_front();
@@ -137,8 +107,7 @@ void objects_callback(const rail_manipulation_msgs::SegmentedObjectList &objectL
 		
 		//ROS_INFO("This is object No.%d\n", i);
 		//ROS_INFO("This object is recognized? %d\n", object.recognized);
-		//ROS_INFO("The center of the object is\n\tx: %f\n\ty: %f\n\tz: %f\n", 
-		//	object.center.x, object.center.y, object.center.z);
+		//ROS_INFO("The center of the object is\n\tx: %f\n\ty: %f\n\tz: %f\n", object.center.x, object.center.y, object.center.z);
 		
 		tf::TransformListener listener;
 		const ros::Time time = ros::Time(0);
@@ -177,8 +146,6 @@ void objects_callback(const rail_manipulation_msgs::SegmentedObjectList &objectL
 		wp.x_max = 10;
 		workspaceList.push_back(wp);
 
-		 //{pt_transformed.point.x-0.1, pt_transformed.point.x+0.1,
-		//							  pt_transformed.point.y-0.1, pt_transformed.point.y+0.1, -10, 10};
 		//ROS_INFO("The dimension of the object is\n\twidth: %f\n\tdepth: %f\n\theight: %f\n\n", object.width, object.depth, object.height);
 		
 	}
