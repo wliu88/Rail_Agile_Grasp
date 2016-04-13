@@ -11,6 +11,7 @@ find_package(catkin REQUIRED COMPONENTS
   rail_manipulation_msgs
   tf
   rail_agile_grasp_msgs
+  agile_grasp
 )
 
 ## System dependencies are found with CMake's conventions
