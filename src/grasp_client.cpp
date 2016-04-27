@@ -9,11 +9,20 @@
 #include <rail_agile_grasp_msgs/FindGraspsAction.h>
 #include <agile_grasp/Grasps.h>
 
+#include <Eigen/Dense>
+#include <eigen_conversions/eigen_msg.h>
+#include <tf_conversions/tf_eigen.h>
+
+//#include <agile_grasp/Grasp.h>
+
+
 // message callback after segmentation service is called
 void objects_callback(const rail_manipulation_msgs::SegmentedObjectList &objectList);
+// message callback for receiving grasps from agile_grasp
+void grasps_callback(const agile_grasp::Grasps &graspsList);
 // a list of workspaces of cluttered objects
 std::list<rail_agile_grasp_msgs::Workspace> workspaceList;
-void grasps_callback(const agile_grasp::Grasps &graspsList);
+std::vector<agile_grasp::Grasp> graspsSet;
 
 int main (int argc, char **argv)
 {
@@ -21,13 +30,16 @@ int main (int argc, char **argv)
 	ros::NodeHandle nh;
 	ros::Subscriber sub = nh.subscribe("/object_recognition_listener/recognized_objects", 100, objects_callback);
 	ros::Subscriber sub_grasps = nh.subscribe("/find_grasps/grasps", 100, grasps_callback);
+	ros::Publisher pose_pub = nh.advertise<geometry_msgs::PoseStamped>("/rail_agile_grasp/pose_st", 1000);
 	// initialize a service client for segmentation
 	ros::ServiceClient segmentClient = nh.serviceClient<std_srvs::Empty>("/rail_segmentation/segment");
 	// initialize a action client for finding grasps
 	actionlib::SimpleActionClient<rail_agile_grasp_msgs::FindGraspsAction> findGraspsClient("/rail_agile_grasp/find_grasps", true);
 	findGraspsClient.waitForServer();
 	ROS_INFO("Find find_grasps server");
-
+    actionlib::SimpleActionClient<rail_manipulation_msgs::PickupAction> pickupClient("tablebot_moveit/common_actions/pickup", true);
+	pickupClient.waitForServer();
+    ROS_INFO("Find pickup server");
 
 	/***
   	// create the action client
@@ -94,8 +106,72 @@ int main (int argc, char **argv)
   			findGraspsClient.sendGoal(findGraspsGoal);
   			ROS_INFO("send one goal");
 			// wait for the action to complete
-  			findGraspsClient.waitForResult(ros::Duration(10));
+  			findGraspsClient.waitForResult(ros::Duration(15));
+  			findGraspsClient.cancelGoal();
   		}
+  		else if (!graspsSet.empty())
+  		{
+  			ROS_INFO("Trying to pickup");
+			agile_grasp::Grasp attemptGrasp = graspsSet.back();
+			graspsSet.pop_back();
+
+  			rail_manipulation_msgs::PickupGoal pickupGoal;
+  			pickupGoal.lift = true;
+  			pickupGoal.verify = false;
+			//pickupGoal.pose.position.x = attemptGrasp.center.x;
+			//pickupGoal.pose.position.x = attemptGrasp.center.y;
+			//pickupGoal.pose.position.x = attemptGrasp.center.z;
+			
+			// Generate pose
+			Eigen::Vector3d center_; ///< the grasp position
+			Eigen::Vector3d surface_center_; ///< the grasp position projected back onto the surface of the object
+			Eigen::Vector3d axis_; ///< the hand axis
+			Eigen::Vector3d approach_; ///< the grasp approach direction
+			Eigen::Vector3d binormal_; ///< the vector orthogonal to the hand axis and the grasp approach direction
+			tf::vectorMsgToEigen(attemptGrasp.axis, axis_);
+			tf::vectorMsgToEigen(attemptGrasp.approach, approach_);
+			tf::vectorMsgToEigen(attemptGrasp.center, center_);
+			tf::vectorMsgToEigen(attemptGrasp.surface_center, surface_center_);
+			approach_ = -1.0 * approach_;
+			binormal_ = axis_.cross(approach_);		
+			
+			Eigen::Matrix3d R = Eigen::MatrixXd::Zero(3, 3);
+  			R.col(2) = -1.0 * approach_;
+  			R.col(0) = axis_;
+  			R.col(1) << R.col(0).cross(R.col(1));
+
+  			tf::Matrix3x3 TF;
+			tf::matrixEigenToTF(R, TF);
+			tf::Quaternion quat;
+			TF.getRotation(quat);
+			quat.normalize();
+
+			Eigen::Vector3d position = center_;
+			geometry_msgs::PoseStamped pose_st;
+			pose_st.header.stamp = ros::Time(0);
+			pose_st.header.frame_id = "kinect2_rgb_optical_frame";
+			tf::pointEigenToMsg(position, pose_st.pose.position);
+			tf::quaternionTFToMsg(quat, pose_st.pose.orientation);
+
+			pickupGoal.pose = pose_st;
+			pose_pub.publish(pose_st);
+
+  			pickupClient.sendGoal(pickupGoal);
+  			//wait for the action to return
+  			while (!pickupClient.getState().isDone())
+  			{
+  			}
+
+  			if (pickupClient.getState() != actionlib::SimpleClientGoalState::SUCCEEDED || !pickupClient.getResult()->success)
+  			{
+  				ROS_INFO("Pickup failed.");
+  			}
+  			else
+  			{
+  				ROS_INFO("Pickup succeeded!");
+  			}
+  		}
+
   		rate.sleep();
   	}
 
@@ -104,8 +180,12 @@ int main (int argc, char **argv)
 
   void grasps_callback(const agile_grasp::Grasps &graspsList)
   {
-  	int i = graspsList.grasps.size();
-  	ROS_INFO("Received %d new grasps", i);
+  	int size = graspsList.grasps.size();
+  	for (int i = 0; i < size; i++) 
+  	{
+		graspsSet.push_back(graspsList.grasps[i]);
+  	}
+  	ROS_INFO("Received %d new unique grasps", size);
   }
 
 

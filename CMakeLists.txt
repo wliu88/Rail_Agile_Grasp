@@ -12,10 +12,16 @@ find_package(catkin REQUIRED COMPONENTS
   tf
   rail_agile_grasp_msgs
   agile_grasp
+
+  eigen_conversions
+  tf_conversions
+  cmake_modules
 )
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
+
+find_package(Eigen REQUIRED)
 
 
 ## Uncomment this if the package has a setup.py. This macro ensures
@@ -119,6 +125,7 @@ catkin_package(
 # include_directories(include)
 include_directories(
   ${catkin_INCLUDE_DIRS}
+  ${EIGEN_INCLUDE_DIRS}
 )
 
 ## Declare a C++ library
@@ -141,6 +148,7 @@ add_executable(rail_agile_grasp src/grasp_client.cpp)
 ## Specify libraries to link a library or executable target against
 target_link_libraries(rail_agile_grasp
    ${catkin_LIBRARIES}
+   ${EIGEN_INCLUDE_DIRS}
 )
 
 #############

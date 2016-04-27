@@ -11,10 +11,16 @@ find_package(catkin REQUIRED COMPONENTS
   rail_manipulation_msgs
   tf
   rail_agile_grasp_msgs
+  agile_grasp
+
+  eigen_conversions
+  tf_conversions
 )
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
+
+find_package(Eigen REQUIRED)
 
 
 ## Uncomment this if the package has a setup.py. This macro ensures
@@ -118,6 +124,7 @@ catkin_package(
 # include_directories(include)
 include_directories(
   ${catkin_INCLUDE_DIRS}
+  ${EIGEN_INCLUDE_DIRS}
 )
 
 ## Declare a C++ library
