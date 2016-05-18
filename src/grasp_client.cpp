@@ -8,6 +8,15 @@
 #include <rail_agile_grasp_msgs/Workspace.h>
 #include <rail_agile_grasp_msgs/FindGraspsAction.h>
 #include <agile_grasp/Grasps.h>
+// rail_action_queue dependencies
+// service
+#include <rail_action_queue_msgs/AddAction.h>
+#include <rail_action_queue_msgs/GetActionList.h>
+#include <rail_action_queue_msgs/InsertAction.h>
+#include <rail_action_queue_msgs/RemoveAction.h>
+#include <rail_action_queue_msgs/ExecuteAction.h>
+// msg
+#include <rail_action_queue_msgs/GeneralAction.h>
 
 #include <Eigen/Dense>
 #include <eigen_conversions/eigen_msg.h>
@@ -40,6 +49,14 @@ int main (int argc, char **argv)
     actionlib::SimpleActionClient<rail_manipulation_msgs::PickupAction> pickupClient("tablebot_moveit/common_actions/pickup", true);
 	pickupClient.waitForServer();
     ROS_INFO("Find pickup server");
+    
+    // clients for using rail_action_queue
+    ros::ServiceClient add_action_client = n.serviceClient<rail_action_queue_msgs::AddAction>("add_action");
+    ros::serviceClient clear_action_list_client = n.serviceClient<rail_action_queue_msgs::ExecuteAction>("clear_action_list");
+    ros::serviceClient get_action_list_client = n.serviceClient<rail_action_queue_msgs::GetActionList>("get_action_list");
+    ros::serviceClient insert_action_client = n.serviceClient<std_srvs::Empty>("insert_aciton");
+    ros::serviceClient remove_action_client = n.serviceClient<rail_action_queue_msgs::RemoveAction>("remove_action");
+    
 
 	/***
   	// create the action client
@@ -131,7 +148,7 @@ int main (int argc, char **argv)
 			tf::vectorMsgToEigen(attemptGrasp.axis, axis_);
 			tf::vectorMsgToEigen(attemptGrasp.approach, approach_);
 			tf::vectorMsgToEigen(attemptGrasp.center, center_);
-			tf::vectorMsgToEigen(attemptGrasp.surface_center, surface_center_);	
+			tf::vectorMsgToEigen(attemptGrasp.surface_center, surface_center_);
 			
 			Eigen::Matrix3d R = Eigen::MatrixXd::Zero(3, 3);
   			R.col(0) = approach_;
@@ -143,6 +160,11 @@ int main (int argc, char **argv)
 			tf::Quaternion quat;
 			TF.getRotation(quat);
 			quat.normalize();
+            
+            // this offset is needed for rail lab jaco arm
+            surface_center_[0] = suface_center[0] - 0.08 * approach_[0];
+            surface_center_[1] = suface_center[1] - 0.08 * approach_[1];
+            surface_center_[2] = suface_center[2] - 0.08 * approach_[2];
 
 			Eigen::Vector3d position = surface_center_;
 			geometry_msgs::PoseStamped pose_st;

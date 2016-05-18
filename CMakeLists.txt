@@ -12,6 +12,7 @@ find_package(catkin REQUIRED COMPONENTS
   tf
   rail_agile_grasp_msgs
   agile_grasp
+  rail_action_queue_msgs
 
   eigen_conversions
   tf_conversions
