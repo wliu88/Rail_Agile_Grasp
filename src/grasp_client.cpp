@@ -131,14 +131,12 @@ int main (int argc, char **argv)
 			tf::vectorMsgToEigen(attemptGrasp.axis, axis_);
 			tf::vectorMsgToEigen(attemptGrasp.approach, approach_);
 			tf::vectorMsgToEigen(attemptGrasp.center, center_);
-			tf::vectorMsgToEigen(attemptGrasp.surface_center, surface_center_);
-			approach_ = -1.0 * approach_;
-			binormal_ = axis_.cross(approach_);		
+			tf::vectorMsgToEigen(attemptGrasp.surface_center, surface_center_);	
 			
 			Eigen::Matrix3d R = Eigen::MatrixXd::Zero(3, 3);
-  			R.col(2) = -1.0 * approach_;
-  			R.col(0) = axis_;
-  			R.col(1) << R.col(0).cross(R.col(1));
+  			R.col(0) = approach_;
+  			R.col(1) = axis_;
+  			R.col(2) << R.col(0).cross(R.col(1));
 
   			tf::Matrix3x3 TF;
 			tf::matrixEigenToTF(R, TF);
@@ -146,7 +144,7 @@ int main (int argc, char **argv)
 			TF.getRotation(quat);
 			quat.normalize();
 
-			Eigen::Vector3d position = center_;
+			Eigen::Vector3d position = surface_center_;
 			geometry_msgs::PoseStamped pose_st;
 			pose_st.header.stamp = ros::Time(0);
 			pose_st.header.frame_id = "kinect2_rgb_optical_frame";
@@ -181,11 +179,16 @@ int main (int argc, char **argv)
   void grasps_callback(const agile_grasp::Grasps &graspsList)
   {
   	int size = graspsList.grasps.size();
+  	int count = 0;
   	for (int i = 0; i < size; i++) 
   	{
-		graspsSet.push_back(graspsList.grasps[i]);
+  		if (fabs(graspsList.grasps[i].center.x) < 0.3 && fabs(graspsList.grasps[i].center.y < 0.3))
+  		{
+  			graspsSet.push_back(graspsList.grasps[i]);
+  		}
+		count++;
   	}
-  	ROS_INFO("Received %d new unique grasps", size);
+  	ROS_INFO("Received %d new unique grasps", count);
   }
 
 
@@ -201,7 +204,7 @@ int main (int argc, char **argv)
 		//ROS_INFO("This object is recognized? %d\n", object.recognized);
 		//ROS_INFO("The center of the object is\n\tx: %f\n\ty: %f\n\tz: %f\n", object.center.x, object.center.y, object.center.z);
 
-  		if (!object.recognized)
+  		if (true)//(!object.recognized)
   		{
   			tf::TransformListener listener;
   			const ros::Time time = ros::Time(0);
