@@ -22,8 +22,6 @@
 #include <eigen_conversions/eigen_msg.h>
 #include <tf_conversions/tf_eigen.h>
 
-//#include <agile_grasp/Grasp.h>
-
 
 // message callback after segmentation service is called
 void objects_callback(const rail_manipulation_msgs::SegmentedObjectList &objectList);
@@ -49,14 +47,14 @@ int main (int argc, char **argv)
     actionlib::SimpleActionClient<rail_manipulation_msgs::PickupAction> pickupClient("tablebot_moveit/common_actions/pickup", true);
 	pickupClient.waitForServer();
     ROS_INFO("Find pickup server");
-    
+    /**
     // clients for using rail_action_queue
     ros::ServiceClient add_action_client = n.serviceClient<rail_action_queue_msgs::AddAction>("add_action");
     ros::serviceClient clear_action_list_client = n.serviceClient<rail_action_queue_msgs::ExecuteAction>("clear_action_list");
     ros::serviceClient get_action_list_client = n.serviceClient<rail_action_queue_msgs::GetActionList>("get_action_list");
     ros::serviceClient insert_action_client = n.serviceClient<std_srvs::Empty>("insert_aciton");
     ros::serviceClient remove_action_client = n.serviceClient<rail_action_queue_msgs::RemoveAction>("remove_action");
-    
+    **/
 
 	/***
   	// create the action client
@@ -135,10 +133,7 @@ int main (int argc, char **argv)
   			rail_manipulation_msgs::PickupGoal pickupGoal;
   			pickupGoal.lift = true;
   			pickupGoal.verify = false;
-			//pickupGoal.pose.position.x = attemptGrasp.center.x;
-			//pickupGoal.pose.position.x = attemptGrasp.center.y;
-			//pickupGoal.pose.position.x = attemptGrasp.center.z;
-			
+
 			// Generate pose
 			Eigen::Vector3d center_; ///< the grasp position
 			Eigen::Vector3d surface_center_; ///< the grasp position projected back onto the surface of the object
@@ -162,9 +157,9 @@ int main (int argc, char **argv)
 			quat.normalize();
             
             // this offset is needed for rail lab jaco arm
-            surface_center_[0] = suface_center[0] - 0.08 * approach_[0];
-            surface_center_[1] = suface_center[1] - 0.08 * approach_[1];
-            surface_center_[2] = suface_center[2] - 0.08 * approach_[2];
+            surface_center_[0] = surface_center_[0] - 0.08 * approach_[0];
+            surface_center_[1] = surface_center_[1] - 0.08 * approach_[1];
+            surface_center_[2] = surface_center_[2] - 0.08 * approach_[2];
 
 			Eigen::Vector3d position = surface_center_;
 			geometry_msgs::PoseStamped pose_st;

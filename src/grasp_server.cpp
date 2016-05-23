@@ -1,145 +1,121 @@
 #include <rail_agile_grasp/grasp_server.h>
 
 GraspServer::GraspServer() :
-	find_grasps_client("/rail_agile_grasp/find_grasps", true),
+	find_grasp_client("/rail_agile_grasp/find_grasps", true),
 	pickup_client("tablebot_moveit/common_actions/pickup", true),
+  rail_agile_grasp_server(nh, "rail_agile_grasp/server", boost::bind(&GraspServer::excute_grasp, this, _1), false),
 	nh("~") 
 {
-	sub_recognized_objects = nh.subscribe("/object_recognition_listener/recognized_objects", 100, objects_callback);
-	sub_grasps = nh.subscribe("/find_grasps/grasps", 100, grasps_callback);
+	recognized_object_sub = nh.subscribe("/object_recognition_listener/recognized_objects", 100, &GraspServer::object_callback, this);
+	grasp_sub = nh.subscribe("/find_grasps/grasps", 100, &GraspServer::grasp_callback, this);
 
 	pose_pub = nh.advertise<geometry_msgs::PoseStamped>("/rail_agile_grasp/pose_st", 1000);
 
 	segment_client = nh.serviceClient<std_srvs::Empty>("/rail_segmentation/segment");
 
+  /**
 	add_action_client = n.serviceClient<rail_action_queue_msgs::AddAction>("add_action");
 	clear_action_list_client = n.serviceClient<rail_action_queue_msgs::ExecuteAction>("clear_action_list");
 	get_action_list_client = n.serviceClient<rail_action_queue_msgs::GetActionList>("get_action_list");
 	insert_action_client = n.serviceClient<std_srvs::Empty>("insert_aciton");
 	remove_action_client = n.serviceClient<rail_action_queue_msgs::RemoveAction>("remove_action");
+  **/
 
-	find_grasps_client.waitForServer();
+	find_grasp_client.waitForServer();
 	ROS_INFO("Find find_grasps server");
 	pickup_client.waitForServer();
   ROS_INFO("Find pickup server");
 }
 
-void GraspServer::excute_grasp()
+
+void GraspServer::excute_grasp(const rail_agile_grasp_msgs::RailAgileGraspGoalConstPtr &goal)
 {
-	while(ros::ok())
+
+  ros::Rate rate(10.0);
+  bool called_segmentation = false;
+  bool success = false;
+
+	while(!rail_agile_grasp_server.isPreemptRequested() && ros::ok())
 	{
-		if(!calledSegmentation) {
-  			std_srvs::Empty segmentSrv;
-  			if (!segmentClient.call(segmentSrv))
+		if(!called_segmentation) {
+  			std_srvs::Empty segment_srv;
+  			if (!segment_client.call(segment_srv))
   			{
   				ROS_INFO("Couldn't call segmentation service.");
   			}
   			else 
   			{
   				ROS_INFO("Called segmentation service.");
-  				calledSegmentation = true;
+  				called_segmentation = true;
   			}
   		}
 
-  		if (!workspaceList.empty())
+  		if (!workspace_list.empty())
   		{
-  			rail_agile_grasp_msgs::FindGraspsGoal findGraspsGoal;
-  			findGraspsGoal.workspace = workspaceList.front();
-  			workspaceList.pop_front();
-  			findGraspsClient.sendGoal(findGraspsGoal);
+  			rail_agile_grasp_msgs::FindGraspsGoal find_grasp_goal;
+  			find_grasp_goal.workspace = workspace_list.front();
+  			workspace_list.pop_front();
+  			find_grasp_client.sendGoal(find_grasp_goal);
   			ROS_INFO("send one goal");
 			// wait for the action to complete
-  			findGraspsClient.waitForResult(ros::Duration(15));
-  			findGraspsClient.cancelGoal();
+  			find_grasp_client.waitForResult(ros::Duration(15));
+  			find_grasp_client.cancelGoal();
   		}
-  		else if (!graspsSet.empty())
+  		else if (!grasp_set.empty())
   		{ 
   			ROS_INFO("Trying to pickup");
-				agile_grasp::Grasp attempt_grasp = graspsSet.back();
-				graspsSet.pop_back();
+				agile_grasp::Grasp attempt_grasp = grasp_set.back();
+				grasp_set.pop_back();
 
 				rail_manipulation_msgs::PickupGoal pickup_goal;
 				pickup_goal.lift = true;
   			pickup_goal.verify = false;
+				pickup_goal.pose = calculateGraspPose(attempt_grasp);
 
-				pickup_goal.pose = calculateGraspGoal(attempt_grasp);
-
-  			pickupClient.sendGoal(pickup_goal);
+  			pickup_client.sendGoal(pickup_goal);
   			//wait for the action to return
-  			while (!pickupClient.getState().isDone())
+  			while (!pickup_client.getState().isDone())
   			{
   			}
-  			if (pickupClient.getState() != actionlib::SimpleClientGoalState::SUCCEEDED || !pickupClient.getResult()->success)
+  			if (pickup_client.getState() != actionlib::SimpleClientGoalState::SUCCEEDED || !pickup_client.getResult()->success)
   			{
   				ROS_INFO("Pickup failed.");
   			}
   			else
   			{
   				ROS_INFO("Pickup succeeded!");
+          success = true;
+          break;
   			}
   		}
   	}
-}
 
-geometry_msgs::PoseStamped GraspServer::calculateGraspGoal(agile_grasp::Grasp attempt_grasp)
-{
-  // Generate pose
-	Eigen::Vector3d center_; ///< the grasp position
-	Eigen::Vector3d surface_center_; ///< the grasp position projected back onto the surface of the object
-	Eigen::Vector3d axis_; ///< the hand axis
-	Eigen::Vector3d approach_; ///< the grasp approach direction
-	Eigen::Vector3d binormal_; ///< the vector orthogonal to the hand axis and the grasp approach direction
-	tf::vectorMsgToEigen(attempt_grasp.axis, axis_);
-	tf::vectorMsgToEigen(attempt_grasp.approach, approach_);
-	tf::vectorMsgToEigen(attempt_grasp.center, center_);
-	tf::vectorMsgToEigen(attempt_grasp.surface_center, surface_center_);
+    if (success)
+    {
+      result.success = true;
+      rail_agile_grasp_server.setSucceeded(result);
+    }
 
-	Eigen::Matrix3d R = Eigen::MatrixXd::Zero(3, 3);
-  R.col(0) = approach_;
-  R.col(1) = axis_;
-  R.col(2) << R.col(0).cross(R.col(1));
-
-  tf::Matrix3x3 TF;
-	tf::matrixEigenToTF(R, TF);
-	tf::Quaternion quat;
-	TF.getRotation(quat);
-	quat.normalize();
-
-	// create an offset for jaco arm
-	surface_center_[0] = suface_center[0] - 0.08 * approach_[0];
-  surface_center_[1] = suface_center[1] - 0.08 * approach_[1];
-  surface_center_[2] = suface_center[2] - 0.08 * approach_[2];
-
-  Eigen::Vector3d position = surface_center_;
-	geometry_msgs::PoseStamped pose_st;
-	pose_st.header.stamp = ros::Time(0);
-	pose_st.header.frame_id = "kinect2_rgb_optical_frame";
-	tf::pointEigenToMsg(position, pose_st.pose.position);
-	tf::quaternionTFToMsg(quat, pose_st.pose.orientation);
- 
-	pose_pub.publish(pose_st);
-	return pose_st;
 }
 
 
 
-
-void GraspServer::grasps_callback(const agile_grasp::Grasps &grasps_list)
+void GraspServer::grasp_callback(const agile_grasp::Grasps &grasp_list)
 {
-	int size = grasps_list.grasps.size();
+	int size = grasp_list.grasps.size();
   int count = 0;
   for (int i = 0; i < size; i++) 
   {
-  	if (fabs(grasps_list.grasps[i].center.x) < 0.3 && fabs(grasps_list.grasps[i].center.y < 0.3))
+  	if (fabs(grasp_list.grasps[i].center.x) < 0.3 && fabs(grasp_list.grasps[i].center.y < 0.3))
   	{
-  		grasps_set.push_back(grasps_list.grasps[i]);
+  		grasp_set.push_back(grasp_list.grasps[i]);
   	}
 		count++;
   }
   ROS_INFO("Received %d new unique grasps", count);
 }
 
-void GraspServer::objects_callback(const rail_manipulation_msgs::SegmentedObjectList &object_list)
+void GraspServer::object_callback(const rail_manipulation_msgs::SegmentedObjectList &object_list)
 {
 	//ROS_INFO("the frame_id is %s", objectList.header.frame_id);
 	for (int i = 0; i < object_list.objects.size(); i++)
@@ -192,11 +168,52 @@ void GraspServer::objects_callback(const rail_manipulation_msgs::SegmentedObject
   }
 }
 
+geometry_msgs::PoseStamped GraspServer::calculateGraspPose(agile_grasp::Grasp attempt_grasp)
+{
+  // Generate pose
+  Eigen::Vector3d center_; ///< the grasp position
+  Eigen::Vector3d surface_center_; ///< the grasp position projected back onto the surface of the object
+  Eigen::Vector3d axis_; ///< the hand axis
+  Eigen::Vector3d approach_; ///< the grasp approach direction
+  tf::vectorMsgToEigen(attempt_grasp.axis, axis_);
+  tf::vectorMsgToEigen(attempt_grasp.approach, approach_);
+  tf::vectorMsgToEigen(attempt_grasp.center, center_);
+  tf::vectorMsgToEigen(attempt_grasp.surface_center, surface_center_);
+
+  Eigen::Matrix3d R = Eigen::MatrixXd::Zero(3, 3);
+  R.col(0) = approach_;
+  R.col(1) = axis_;
+  R.col(2) << R.col(0).cross(R.col(1));
+
+  tf::Matrix3x3 TF;
+  tf::matrixEigenToTF(R, TF);
+  tf::Quaternion quat;
+  TF.getRotation(quat);
+  quat.normalize();
+
+  // create an offset for jaco arm
+  surface_center_[0] = surface_center_[0] - 0.08 * approach_[0];
+  surface_center_[1] = surface_center_[1] - 0.08 * approach_[1];
+  surface_center_[2] = surface_center_[2] - 0.08 * approach_[2];
+
+  Eigen::Vector3d position = surface_center_;
+  geometry_msgs::PoseStamped pose_st;
+  pose_st.header.stamp = ros::Time(0);
+  pose_st.header.frame_id = "kinect2_rgb_optical_frame";
+  tf::pointEigenToMsg(position, pose_st.pose.position);
+  tf::quaternionTFToMsg(quat, pose_st.pose.orientation);
+ 
+  pose_pub.publish(pose_st);
+  return pose_st;
+}
+
+
 int main(int argc, char **argv)
 {
   // initialize ROS and the node
   ros::init(argc, argv, "rail_agile_grasp");
   GraspServer gs;
   ros::spin();
+  ROS_INFO("Hello World!");
   return EXIT_SUCCESS;
 }

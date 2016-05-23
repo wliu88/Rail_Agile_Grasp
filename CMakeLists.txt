@@ -13,7 +13,6 @@ find_package(catkin REQUIRED COMPONENTS
   rail_agile_grasp_msgs
   agile_grasp
   rail_action_queue_msgs
-
   eigen_conversions
   tf_conversions
   cmake_modules
@@ -111,7 +110,7 @@ find_package(Eigen REQUIRED)
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-#  INCLUDE_DIRS include
+#   INCLUDE_DIRS include
 #  LIBRARIES rail_agile_grasp
 #   CATKIN_DEPENDS message_runtime roscpp std_msgs
 #  DEPENDS system_lib
@@ -125,6 +124,7 @@ catkin_package(
 ## Your package locations should be listed before other locations
 # include_directories(include)
 include_directories(
+  include
   ${catkin_INCLUDE_DIRS}
   ${EIGEN_INCLUDE_DIRS}
 )
@@ -140,17 +140,24 @@ include_directories(
 #add_dependencies(rail_agile_grasp rail_agile_grasp_msgs_gencpp)
 
 ## Declare a C++ executable
-add_executable(rail_agile_grasp src/grasp_client.cpp)
+add_executable(rail_agile_grasp_demo src/grasp_client.cpp)
+add_executable(rail_agile_grasp_server src/grasp_server.cpp)
 
 ## Add cmake target dependencies of the executable
 ## same as for the library above
 #add_dependencies(rail_agile_grasp_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
-target_link_libraries(rail_agile_grasp
+target_link_libraries(rail_agile_grasp_server
    ${catkin_LIBRARIES}
    ${EIGEN_INCLUDE_DIRS}
 )
+
+target_link_libraries(rail_agile_grasp_demo
+   ${catkin_LIBRARIES}
+   ${EIGEN_INCLUDE_DIRS}
+)
+
 
 #############
 ## Install ##
