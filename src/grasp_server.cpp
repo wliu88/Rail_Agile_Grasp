@@ -3,7 +3,7 @@
 GraspServer::GraspServer() :
 	find_grasp_client("/rail_agile_grasp/find_grasps", true),
 	pickup_client("tablebot_moveit/common_actions/pickup", true),
-  rail_agile_grasp_server(nh, "rail_agile_grasp/server", boost::bind(&GraspServer::excute_grasp, this, _1), false),
+  rail_agile_grasp_server(nh, "rail_agile_grasp_server", boost::bind(&GraspServer::excute_grasp, this, _1), false),
 	nh("~") 
 {
 	recognized_object_sub = nh.subscribe("/object_recognition_listener/recognized_objects", 100, &GraspServer::object_callback, this);
@@ -20,6 +20,8 @@ GraspServer::GraspServer() :
 	insert_action_client = n.serviceClient<std_srvs::Empty>("insert_aciton");
 	remove_action_client = n.serviceClient<rail_action_queue_msgs::RemoveAction>("remove_action");
   **/
+
+  rail_agile_grasp_server.start();
 
 	find_grasp_client.waitForServer();
 	ROS_INFO("Find find_grasps server");
