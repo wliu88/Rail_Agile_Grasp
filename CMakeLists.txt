@@ -146,7 +146,8 @@ add_executable(rail_agile_grasp_demo src/demo.cpp)
 
 ## Add cmake target dependencies of the executable
 ## same as for the library above
-#add_dependencies(rail_agile_grasp_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+add_dependencies(rail_agile_grasp_server rail_agile_grasp_msgs_gencpp)
+add_dependencies(rail_agile_grasp_demo rail_agile_grasp_msgs_gencpp)
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(rail_agile_grasp_server

@@ -10,6 +10,7 @@ int main (int argc, char **argv)
 	client.waitForServer();
 	ROS_INFO("Find rail_agile_grasp server");
 	rail_agile_grasp_msgs::RailAgileGraspGoal goal;
+	goal.do_segment = true;
 	client.sendGoal(goal);
 	while (!client.getState().isDone())
   	{

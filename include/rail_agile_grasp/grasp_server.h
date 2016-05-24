@@ -43,16 +43,16 @@ class GraspServer
     actionlib::SimpleActionClient<rail_agile_grasp_msgs::FindGraspsAction> find_grasp_client;
     actionlib::SimpleActionClient<rail_manipulation_msgs::PickupAction> pickup_client;
 
-    /**
-    ros::ServiceClient add_action_client;
-    ros::serviceClient clear_action_list_client;
-    ros::serviceClient get_action_list_client;
-    ros::serviceClient insert_action_client;
-    ros::serviceClient remove_action_client;
-    **/
+    
+    //ros::ServiceClient add_action_client;
+    //ros::serviceClient clear_action_list_client;
+    //ros::serviceClient get_action_list_client;
+    //ros::serviceClient insert_action_client;
+    //ros::serviceClient remove_action_client;
+    
 
     // attributes
-    std::list<rail_agile_grasp_msgs::Workspace> workspace_list;
+    std::vector<rail_agile_grasp_msgs::Workspace> workspace_list;
     std::vector<agile_grasp::Grasp> grasp_set;
     rail_agile_grasp_msgs::RailAgileGraspFeedback feedback;
     rail_agile_grasp_msgs::RailAgileGraspResult result;
@@ -77,6 +77,8 @@ class GraspServer
      * @return  pickup pose
      */
     geometry_msgs::PoseStamped calculateGraspPose(agile_grasp::Grasp attempt_grasp);
+
+    void convert_to_workspace(const rail_manipulation_msgs::SegmentedObjectList &object_list);
 };
 
 int main(int argc, char **argv);
