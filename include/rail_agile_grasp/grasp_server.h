@@ -23,11 +23,12 @@
 #include <Eigen/Dense>
 #include <eigen_conversions/eigen_msg.h>
 #include <tf_conversions/tf_eigen.h>
+#include <ros/callback_queue.h>
 
 class GraspServer
 {
   public:
-    GraspServer();
+    GraspServer(ros::NodeHandle& nh_server);
   private:
     ros::NodeHandle nh;
 

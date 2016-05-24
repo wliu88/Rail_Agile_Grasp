@@ -1,9 +1,9 @@
 #include <rail_agile_grasp/grasp_server.h>
 
-GraspServer::GraspServer() :
+GraspServer::GraspServer(ros::NodeHandle& nh_server) :
 find_grasp_client("/rail_agile_grasp/find_grasps", true),
 pickup_client("tablebot_moveit/common_actions/pickup", true),
-rail_agile_grasp_server(nh, "rail_agile_grasp_server", boost::bind(&GraspServer::excute_grasp, this, _1), false),
+rail_agile_grasp_server(nh_server, "rail_agile_grasp_server", boost::bind(&GraspServer::excute_grasp, this, _1), false),
 nh("~") 
 {
 	recognized_object_sub = nh.subscribe("/object_recognition_listener/recognized_objects", 100, &GraspServer::object_callback, this);
@@ -44,9 +44,8 @@ void GraspServer::excute_grasp(const rail_agile_grasp_msgs::RailAgileGraspGoalCo
   // main loop
   while(!rail_agile_grasp_server.isPreemptRequested() && ros::ok())
   { 
-    ros::spinOnce();
     // 1. call segmentation
-    if(!called_segmentation) 
+    if(!called_segmentation)
     {
       std_srvs::Empty segment_srv;
       if (!segment_client.call(segment_srv))
@@ -58,6 +57,20 @@ void GraspServer::excute_grasp(const rail_agile_grasp_msgs::RailAgileGraspGoalCo
         ROS_INFO("Called segmentation service.");
         called_segmentation = true;
       }
+      // spinOnce to get objects message from segmentation
+      int i = 0;
+      ros::Rate r(10);
+      while(!rail_agile_grasp_server.isPreemptRequested() && ros::ok() && i < 300 && workspace_list.empty())
+      {
+        ros::spinOnce();
+        i++;
+        r.sleep();
+      }
+      if (workspace_list.empty())
+      {
+        ROS_INFO("Could not segment any object");
+      }
+
     }
 
     // 2. call agile grasp
@@ -69,11 +82,22 @@ void GraspServer::excute_grasp(const rail_agile_grasp_msgs::RailAgileGraspGoalCo
       find_grasp_goal.workspace = workspace_list.at(object_index);
       find_grasp_client.sendGoal(find_grasp_goal);
       ROS_INFO("Send one object workspace to agile");
-      find_grasp_client.waitForResult(ros::Duration(30)); // block until finish
+      //find_grasp_client.waitForResult(ros::Duration(30)); // block until finish
+      int i = 0;
+      ros::Rate r(10);
+      while(!rail_agile_grasp_server.isPreemptRequested() && ros::ok() && i < 300)
+      {
+        ros::spinOnce();
+        i++;
+        r.sleep();
+      }
       ROS_INFO("Finished waiting for agile");
       find_grasp_client.cancelGoal();
-      //ROS_INFO("grasp index is %d", grasp_index);
-      //ROS_INFO("object_in_progress is %d", object_in_progress);
+      if (grasp_set.empty()) 
+      {
+        object_in_progress = false;
+        object_index++;
+      }
     }
    
     // 3. call pickup
@@ -134,12 +158,12 @@ void GraspServer::grasp_callback(const agile_grasp::Grasps &grasp_list)
   	if (fabs(grasp_list.grasps[i].center.x) < 0.3 && fabs(grasp_list.grasps[i].center.y < 0.3))
   	{
   		grasp_set.push_back(grasp_list.grasps[i]);
+      count++;
   	}
-    count++;
   }
-  ROS_INFO("Received %d new unique grasps", count);
-  int s = grasp_set.size();
-  ROS_INFO("grasp_set size is %d", s);
+  ROS_INFO("Received %d new valid grasps", count);
+  //int s = grasp_set.size();
+  //ROS_INFO("grasp_set size is %d", s);
 }
 
 
@@ -244,8 +268,14 @@ int main(int argc, char **argv)
 {
   // initialize ROS and the node
   ros::init(argc, argv, "rail_agile_grasp");
-  GraspServer gs;
-  ros::spinOnce();
-  ROS_INFO("Hello World!");
+  ros::NodeHandle nh_server;
+  ros::CallbackQueue queue_server;
+  nh_server.setCallbackQueue(&queue_server);
+  GraspServer gs(nh_server);
+  // TODO add a inidividual callback queue for receiving client calls
+  while (ros::ok()) 
+  {
+    queue_server.callAvailable(ros::WallDuration());
+  }
   return EXIT_SUCCESS;
 }

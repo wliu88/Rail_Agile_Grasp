@@ -6,7 +6,7 @@ int main (int argc, char **argv)
 {
 	ros::init(argc, argv, "grasp");
 	ros::NodeHandle nh;
-	actionlib::SimpleActionClient<rail_agile_grasp_msgs::RailAgileGraspAction> client("rail_agile_grasp/rail_agile_grasp_server", true);
+	actionlib::SimpleActionClient<rail_agile_grasp_msgs::RailAgileGraspAction> client("/rail_agile_grasp_server", true);
 	client.waitForServer();
 	ROS_INFO("Find rail_agile_grasp server");
 	rail_agile_grasp_msgs::RailAgileGraspGoal goal;
