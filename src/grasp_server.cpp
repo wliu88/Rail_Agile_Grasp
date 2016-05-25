@@ -3,6 +3,7 @@
 GraspServer::GraspServer(ros::NodeHandle& nh_server) :
 find_grasp_client("/rail_agile_grasp/find_grasps", true),
 pickup_client("tablebot_moveit/common_actions/pickup", true),
+store_client("tablebot_moveit/common_actions/store", true),
 rail_agile_grasp_server(nh_server, "rail_agile_grasp_server", boost::bind(&GraspServer::excute_grasp, this, _1), false),
 nh("~") 
 {
@@ -19,7 +20,7 @@ nh("~")
 
   rail_agile_grasp_server.start();
   ROS_INFO("Started rail_agile_grasp server");
-  find_grasp_client.waitForServer();
+  find_grasp_client.waitForServer();  
   ROS_INFO("Found find_grasps server");
   pickup_client.waitForServer();
   ROS_INFO("Found pickup server");
@@ -33,6 +34,11 @@ void GraspServer::excute_grasp(const rail_agile_grasp_msgs::RailAgileGraspGoalCo
   int object_index = 0;
   bool object_in_progress = false;
   int grasp_index = 0;
+
+  //ss.str("");
+  //ss << "Moving to approach angle failed for this grasp.";
+  //feedback.current_action = ss.str();
+  //pickupServer.publishFeedback(feedback);
 
   // if scene is already segmented in the caller program
   if(!goal->do_segment)
@@ -122,6 +128,19 @@ void GraspServer::excute_grasp(const rail_agile_grasp_msgs::RailAgileGraspGoalCo
       {
         ROS_INFO("Pickup No.%d succeeded!", grasp_index);
         // TODO: add a store client.
+        rail_manipulation_msgs::StoreGoal store_goal;
+        store_goal.store_pose = goal.store_pose;
+        store_client.sendGoal(store_goal);
+        store_client.waitForResult(ros::Duration(500));
+        if (pickup_client.getState() != actionlib::SimpleClientGoalState::SUCCEEDED || !pickup_client.getResult()->success)
+        {
+          ROS_INFO("store object No.%d failed.", object_index);
+        }
+        else
+        {
+          ROS_INFO("store object No.%d succeeded!", object_index);
+        }
+        // increment grasp_index to terminal state
         grasp_index = grasp_set.size();
       }
 
@@ -262,7 +281,6 @@ void GraspServer::convert_to_workspace(const rail_manipulation_msgs::SegmentedOb
     }
   }
 }
-
 
 int main(int argc, char **argv)
 {

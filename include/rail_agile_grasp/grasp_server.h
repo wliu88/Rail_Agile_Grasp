@@ -2,6 +2,7 @@
 #include <actionlib/client/simple_action_client.h>
 #include <actionlib/client/terminal_state.h>
 #include <rail_manipulation_msgs/PickupAction.h>
+#include <rail_manipulation_msgs/StoreAction.h>
 #include <rail_manipulation_msgs/SegmentedObjectList.h>
 #include <tf/transform_listener.h>
 #include <std_srvs/Empty.h>
@@ -43,6 +44,7 @@ class GraspServer
 
     actionlib::SimpleActionClient<rail_agile_grasp_msgs::FindGraspsAction> find_grasp_client;
     actionlib::SimpleActionClient<rail_manipulation_msgs::PickupAction> pickup_client;
+    actionlib::SimpleActionClient<rail_manipulation_msgs::StoreAction> store_client;
 
     
     //ros::ServiceClient add_action_client;
@@ -57,6 +59,7 @@ class GraspServer
     std::vector<agile_grasp::Grasp> grasp_set;
     rail_agile_grasp_msgs::RailAgileGraspFeedback feedback;
     rail_agile_grasp_msgs::RailAgileGraspResult result;
+    stringstream ss;
 
     void excute_grasp(const rail_agile_grasp_msgs::RailAgileGraspGoalConstPtr &goal);
 
